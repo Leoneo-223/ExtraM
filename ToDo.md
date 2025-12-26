@@ -12,6 +12,8 @@
 - Properties system
 - Robberies system w/ setups
 - Misson system
+- Leveling up system
+- Being able to link discord, steam etc (CnR V Inspired 😉)
 
 NOTE: For future me, make sure the sates if in a misson is stored in ExtraM.Players[source].inMission or .inSetup etc
 

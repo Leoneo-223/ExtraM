@@ -15,32 +15,6 @@ local function GetLicense(source)
     return nil
 end
 
----@param msg string
----@param level string? ("info", "warn", "error")
-function ExtraM.Log(msg, level)
-    level = level or "info"
-
-    if ExtraM.Config.DebugMode then
-        if level == "info" then
-            print(("[ExtraM] %s"):format(msg))
-        elseif level == "warn" then
-            print(("[ExtraM][WARN] %s"):format(msg))
-        elseif level == "error" then
-            print(("[ExtraM][ERROR] %s"):format(msg))
-        end
-    end
-
-    local webhook = ExtraM.Config.Webhooks.DebugLog
-    if webhook and webhook ~= "" then
-        PerformHttpRequest(webhook, function(err, text, headers) end, "POST", 
-            json.encode({
-                username = "ExtraM Debug", 
-                content = ("`[%s]` %s"):format(level:upper(), msg)
-            }), 
-            {["Content-Type"] = "application/json"})
-    end
-end
-
 ---------------------------------------------------------------------------------------
 -- PLAYER MEMORY ACCESS
 --- Returns the player object
@@ -72,7 +46,7 @@ function ExtraM.GiveStat(source, stat, amount, reason)
         {["@value"] = player[stat], ["@license"] = player.license}
     )
 
-    ExtraM.Log(("[ExtraM] Gave %d %s to %s | Reason: %s | New value: %d")
+    ExtraM.Log(("Gave %d %s to %s | Reason: %s | New value: %d")
         :format(amount, stat, player.name, reason or "N/A", player[stat]))
 
     return true
@@ -98,7 +72,7 @@ function ExtraM.RemoveStat(source, stat, amount, reason)
         {["@value"] = player[stat], ["@license"] = player.license}
     )
 
-    ExtraM.Log(("[ExtraM] Removed %d %s from %s | Reason: %s | New value: %d")
+    ExtraM.Log(("Removed %d %s from %s | Reason: %s | New value: %d")
         :format(amount, stat, player.name, reason or "N/A", player[stat]))
 
     return true
@@ -142,7 +116,7 @@ function ExtraM.Withdraw(source, amount)
     if not player or amount <= 0 then return false end
 
     if player.bank < amount then
-        ExtraM.Log(("[ExtraM][WARN] Player %s tried to withdraw %d but only has %d in bank")
+        ExtraM.Log(("Player %s tried to withdraw %d but only has %d in bank", "warn")
             :format(player.name, amount, player.bank), "warn")
         return false
     end
@@ -157,7 +131,7 @@ function ExtraM.Deposit(source, amount)
     if not player or amount <= 0 then return false end
 
     if player.bank < amount then
-        ExtraM.Log(("[ExtraM][WARN] Player %s tried to withdraw %d but only has %d in bank")
+        ExtraM.Log(("Player %s tried to withdraw %d but only has %d in bank", "warn")
             :format(player.name, amount, player.bank), "warn")
         return false
     end
@@ -185,52 +159,68 @@ AddEventHandler("playerJoining", function()
         {["@license"]=license},
         function(result)
             if not result then
-                -- if player does not exist yet, insert them
+                -- if player does not exist yet, put them with default stats
                 MySQL.Async.execute(
-                    "INSERT INTO "..ExtraM.Config.Server.PlayerDataTableName.." (license, name, cash, bank, xp, level) VALUES (@license,@name,@cash,@bank,@xp,@level)",
+                    "INSERT INTO "..ExtraM.Config.Server.PlayerDataTableName.." (license, name, cash, bank, xp, level, character) VALUES (@license,@name,@cash,@bank,@xp,@level,@character)",
                     {
-                        ["@license"]=license,
-                        ["@name"]=name,
-                        ["@cash"]=ExtraM.Config.StartingCash,
-                        ["@bank"]=ExtraM.Config.StartingBank,
-                        ["@xp"]=0,
-                        ["@level"]=ExtraM.Config.StartingLevel
-                    }
-                )
-            end
-
-            -- put player in memory
-            ExtraM.Players[source] = {
-                source = source,
-                name = name,
-                license = license,
-                cash = ExtraM.Config.StartingCash,
-                bank = ExtraM.Config.StartingBank,
-                xp = 0,
-                level = ExtraM.Config.StartingLevel,
-                loaded = false,
-                joinedAt = os.time()
-            }
-
-            local player = ExtraM.Players[source]
-            local statsToLoad = {"cash", "bank", "xp", "level"}
-            local loadedCount = 0
-
-            -- Load stats from DB
-            for _, stat in ipairs(statsToLoad) do
-                ExtraM.GetPlayerStat(source, stat, function(value)
-                    player[stat] = value
-                    loadedCount = loadedCount + 1
-
-                    if loadedCount == #statsToLoad then
-                        player.loaded = true
-                        ExtraM.Log(("Player loaded: %s (%s)"):format(player.name, player.license))
+                        ["@license"] = license,
+                        ["@name"] = name,
+                        ["@cash"] = ExtraM.Config.StartingCash,
+                        ["@bank"] = ExtraM.Config.StartingBank,
+                        ["@xp"] = 0,
+                        ["@level"] = ExtraM.Config.StartingLevel,
+                        ["@character"] = nil -- no character yet
+                    },
+                    function()
+                        -- trigger character creation for new players
+                        TriggerClientEvent("lbg-open-char", source)
                     end
-                end)
+                )
+            else
+                -- if player exists, check if they have a character
+                MySQL.Async.fetchScalar(
+                    "SELECT character FROM "..ExtraM.Config.Server.PlayerDataTableName.." WHERE license=@license",
+                    {["@license"]=license},
+                    function(characterData)
+                        if not characterData or characterData == "null" then
+                            -- if no character saved, trigger creation
+                            TriggerClientEvent("lbg-open-char", source)
+                        else
+                            -- if character exists, load stats into memory
+                            local statsToLoad = {"cash", "bank", "xp", "level"}
+                            local loadedCount = 0
+
+                            ExtraM.Players[source] = {
+                                source = source,
+                                name = name,
+                                license = license,
+                                cash = ExtraM.Config.StartingCash,
+                                bank = ExtraM.Config.StartingBank,
+                                xp = 0,
+                                level = ExtraM.Config.StartingLevel,
+                                loaded = false,
+                                joinedAt = os.time()
+                            }
+
+                            for _, stat in ipairs(statsToLoad) do
+                                ExtraM.GetPlayerStat(source, stat, function(value)
+                                    ExtraM.Players[source][stat] = value
+                                    loadedCount = loadedCount + 1
+
+                                    if loadedCount == #statsToLoad then
+                                        ExtraM.Players[source].loaded = true
+                                        ExtraM.Log(("Player loaded: %s (%s)"):format(name, license))
+                                    end
+                                end)
+                            end
+                        end
+                    end
+                )
             end
         end
     )
 end)
+
 
 AddEventHandler("playerDropped", function(reason)
     local source = source
