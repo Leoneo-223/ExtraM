@@ -6,7 +6,6 @@ ExtraM.Players = ExtraM.Players or {}
 
 ---------------------------------------------------------------------------------------
 -- HELPER FUNCTIONS
--- Get Rockstar license for a player
 local function GetLicense(source)
     for _, identifier in ipairs(GetPlayerIdentifiers(source)) do
         if identifier:sub(1, 8) == "license:" then
@@ -16,7 +15,6 @@ local function GetLicense(source)
     return nil
 end
 
--- Logging function (console + optional Discord webhook)
 ---@param msg string
 ---@param level string? ("info", "warn", "error")
 function ExtraM.Log(msg, level)
@@ -181,13 +179,13 @@ AddEventHandler("playerJoining", function()
         return
     end
 
-    -- First, check if the player exists in DB
+    -- check if the player exists in DB
     MySQL.Async.fetchScalar(
         "SELECT license FROM "..ExtraM.Config.Server.PlayerDataTableName.." WHERE license=@license",
         {["@license"]=license},
         function(result)
             if not result then
-                -- Player does not exist yet, insert them
+                -- if player does not exist yet, insert them
                 MySQL.Async.execute(
                     "INSERT INTO "..ExtraM.Config.Server.PlayerDataTableName.." (license, name, cash, bank, xp, level) VALUES (@license,@name,@cash,@bank,@xp,@level)",
                     {
@@ -201,7 +199,7 @@ AddEventHandler("playerJoining", function()
                 )
             end
 
-            -- Initialize player in memory
+            -- put player in memory
             ExtraM.Players[source] = {
                 source = source,
                 name = name,
@@ -334,5 +332,4 @@ if ExtraM.Config.DebugMode then
         print(("[DEBUG] %s's stats | Cash: %d | Bank: %d | XP: %d | Level: %d")
             :format(player.name, player.cash, player.bank, player.xp, player.level))
     end, false)
-
 end
