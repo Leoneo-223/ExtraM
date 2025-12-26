@@ -55,7 +55,7 @@ end
 ---@param source number
 ---@param stat "cash"|"bank"|"xp"
 ---@param amount number
----@param reason string? -- optional description for logging
+---@param reason string? 
 function ExtraM.GiveStat(source, stat, amount, reason)
     local player = ExtraM.GetPlayer(source)
     if not player then return false end
@@ -81,7 +81,7 @@ end
 ---@param source number
 ---@param stat "cash"|"bank"|"xp"
 ---@param amount number
----@param reason string? -- optional description for logging
+---@param reason string? 
 function ExtraM.RemoveStat(source, stat, amount, reason)
     local player = ExtraM.GetPlayer(source)
     if not player then return false end
@@ -126,10 +126,10 @@ function ExtraM.GetPlayerStat(source, stat, cb)
         function(result)
             local value = result
             if not value then
-                if stat == "cash" then value = ExtraM.Config.Server.StartingCash end
-                if stat == "bank" then value = ExtraM.Config.Server.StartingBank end
+                if stat == "cash" then value = ExtraM.Config.StartingCash end
+                if stat == "bank" then value = ExtraM.Config.StartingBank end
                 if stat == "xp" then value = 0 end
-                if stat == "level" then value = ExtraM.Config.Server.StartingLevel end
+                if stat == "level" then value = ExtraM.Config.StartingLevel end
             end
             player[stat] = value
             cb(value)
@@ -191,10 +191,10 @@ AddEventHandler("playerJoining", function()
                     {
                         ["@license"]=license,
                         ["@name"]=name,
-                        ["@cash"]=ExtraM.Config.Server.StartingCash,
-                        ["@bank"]=ExtraM.Config.Server.StartingBank,
+                        ["@cash"]=ExtraM.Config.StartingCash,
+                        ["@bank"]=ExtraM.Config.StartingBank,
                         ["@xp"]=0,
-                        ["@level"]=ExtraM.Config.Server.StartingLevel
+                        ["@level"]=ExtraM.Config.StartingLevel
                     }
                 )
             end
@@ -204,10 +204,10 @@ AddEventHandler("playerJoining", function()
                 source = source,
                 name = name,
                 license = license,
-                cash = ExtraM.Config.Server.StartingCash,
-                bank = ExtraM.Config.Server.StartingBank,
+                cash = ExtraM.Config.StartingCash,
+                bank = ExtraM.Config.StartingBank,
                 xp = 0,
-                level = ExtraM.Config.Server.StartingLevel,
+                level = ExtraM.Config.StartingLevel,
                 loaded = false,
                 joinedAt = os.time()
             }
