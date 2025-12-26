@@ -116,8 +116,7 @@ function ExtraM.Withdraw(source, amount)
     if not player or amount <= 0 then return false end
 
     if player.bank < amount then
-        ExtraM.Log(("Player %s tried to withdraw %d but only has %d in bank", "warn")
-            :format(player.name, amount, player.bank), "warn")
+        ExtraM.Log(("Player %s tried to withdraw %d but only has %d in bank"):format(player.name, amount, player.bank), "warn")
         return false
     end
 
@@ -131,8 +130,7 @@ function ExtraM.Deposit(source, amount)
     if not player or amount <= 0 then return false end
 
     if player.bank < amount then
-        ExtraM.Log(("Player %s tried to withdraw %d but only has %d in bank", "warn")
-            :format(player.name, amount, player.bank), "warn")
+        ExtraM.Log(("Player %s tried to deposit %d but only has %d in bank"):format(player.name, amount, player.bank), "warn")
         return false
     end
 
@@ -161,7 +159,7 @@ AddEventHandler("playerJoining", function()
             if not result then
                 -- if player does not exist yet, put them with default stats
                 MySQL.Async.execute(
-                    "INSERT INTO "..ExtraM.Config.Server.PlayerDataTableName.." (license, name, cash, bank, xp, level, character) VALUES (@license,@name,@cash,@bank,@xp,@level,@character)",
+                    "INSERT INTO "..ExtraM.Config.Server.PlayerDataTableName.." (license, name, cash, bank, xp, level, `character`) VALUES (@license,@name,@cash,@bank,@xp,@level,@character)",
                     {
                         ["@license"] = license,
                         ["@name"] = name,
@@ -169,24 +167,27 @@ AddEventHandler("playerJoining", function()
                         ["@bank"] = ExtraM.Config.StartingBank,
                         ["@xp"] = 0,
                         ["@level"] = ExtraM.Config.StartingLevel,
-                        ["@character"] = nil -- no character yet
+                        ["@character"] = json.encode({}) -- empty character table
                     },
                     function()
-                        -- trigger character creation for new players
-                        TriggerClientEvent("lbg-open-char", source)
+                        TriggerClientEvent("lbg-openChar", source)
                     end
                 )
             else
                 -- if player exists, check if they have a character
                 MySQL.Async.fetchScalar(
-                    "SELECT character FROM "..ExtraM.Config.Server.PlayerDataTableName.." WHERE license=@license",
+                    "SELECT `character` FROM "..ExtraM.Config.Server.PlayerDataTableName.." WHERE license=@license",
                     {["@license"]=license},
                     function(characterData)
-                        if not characterData or characterData == "null" then
-                            -- if no character saved, trigger creation
-                            TriggerClientEvent("lbg-open-char", source)
+                        -- Check if characterData is nil, empty, or the string "null"
+                        if not characterData or characterData == "null" or characterData == "" then
+                            TriggerClientEvent("lbg-openChar", source)
                         else
                             -- if character exists, load stats into memory
+
+                            local characterData = json.decode(characterData)
+                            TriggerClientEvent("ExtraM:ClientLoadCharacter", source, charData)
+
                             local statsToLoad = {"cash", "bank", "xp", "level"}
                             local loadedCount = 0
 
@@ -220,7 +221,6 @@ AddEventHandler("playerJoining", function()
         end
     )
 end)
-
 
 AddEventHandler("playerDropped", function(reason)
     local source = source
