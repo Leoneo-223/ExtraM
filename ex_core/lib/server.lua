@@ -192,3 +192,9 @@ AddEventHandler("ExtraM:SaveBlipInfo", function(blipData)
 
     ExtraM.Log(("Saved blip from player %s"):format(src), "info")
 end)
+
+--[[ I only got saving the blip data into the json file, harder part is gonna be to make it show on the map
+    An easier approach would be to create a blips.lua and make a table with all blip data and a script to print that 
+    shit in a way i can easily copy & paste into the lua file, but i want it to be a more convienient process 
+    instead of my switching tabs like a maniac 
+]] 
